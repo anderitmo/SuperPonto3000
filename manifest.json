@@ -1,0 +1,15 @@
+{
+  "name": "SuperPonto3000",
+  "short_name": "SuperPonto",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://cdn.jsdelivr.net/npm/lucide-static@latest/icons/clock.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}

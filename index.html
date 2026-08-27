@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SuperPonto3000 - Controle de Ponto</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- CSS Styles -->
+  <link rel="stylesheet" href="src/css/styles.css">
+  
+  <!-- CDN Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/idb@7/build/umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <!-- Header / Navigation -->
+  <header class="app-header">
+    <div class="logo-container">
+      <i data-lucide="clock" class="logo-icon"></i>
+      <h1>SuperPonto3000</h1>
+    </div>
+    <nav class="app-nav">
+      <button id="nav-totem" class="nav-btn active">
+        <i data-lucide="user-check"></i>
+        <span>Registrar Ponto</span>
+      </button>
+      <button id="nav-rh" class="nav-btn">
+        <i data-lucide="users"></i>
+        <span>Portal RH</span>
+      </button>
+    </nav>
+    <div id="offline-badge" class="offline-badge hidden">
+      <i data-lucide="wifi-off"></i>
+      <span>Modo Offline</span>
+    </div>
+  </header>
+
+  <!-- Main Content Container (SPA Views) -->
+  <main id="app-content" class="container">
+    <!-- Totem View -->
+    <section id="view-totem" class="view-section">
+      <div class="totem-card">
+        <h2>Registro de Ponto</h2>
+        <p class="subtitle">Informe sua matrícula e registre sua marcação</p>
+        
+        <div class="totem-grid">
+          <!-- Camera Preview Area -->
+          <div class="camera-box">
+            <video id="webcam-preview" autoplay playsinline muted></video>
+            <canvas id="photo-canvas" style="display:none;"></canvas>
+            <div id="camera-placeholder" class="camera-placeholder">
+              <i data-lucide="camera-off" class="icon-lg"></i>
+              <p>Iniciando câmera...</p>
+            </div>
+          </div>
+
+          <!-- Controls Area -->
+          <div class="controls-box">
+            <div class="form-group">
+              <label for="matricula-input">Matrícula</label>
+              <input type="text" id="matricula-input" placeholder="Digite sua matrícula (ex: 1001)" autocomplete="off">
+            </div>
+
+            <div class="type-selector">
+              <label>Tipo de Marcação</label>
+              <div class="radio-group">
+                <label class="radio-btn">
+                  <input type="radio" name="record-type" value="ENTRADA" checked>
+                  <span class="btn-label entrada"><i data-lucide="log-in"></i> ENTRADA</span>
+                </label>
+                <label class="radio-btn">
+                  <input type="radio" name="record-type" value="SAIDA">
+                  <span class="btn-label saida"><i data-lucide="log-out"></i> SAÍDA</span>
+                </label>
+              </div>
+            </div>
+
+            <button id="btn-register" class="btn-primary">
+              <i data-lucide="check-circle"></i>
+              <span>Registrar Ponto</span>
+            </button>
+            <div id="totem-feedback" class="feedback-msg"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RH Portal View -->
+    <section id="view-rh" class="view-section hidden">
+      <div class="rh-header">
+        <h2>Portal do RH - Relatórios de Jornada</h2>
+        <button id="btn-refresh-rh" class="btn-secondary">
+          <i data-lucide="refresh-cw"></i> Sincronizar / Atualizar
+        </button>
+      </div>
+
+      <div class="filters-card">
+        <div class="form-group">
+          <label for="filter-date">Data</label>
+          <input type="date" id="filter-date">
+        </div>
+        <div class="form-group">
+          <label for="filter-department">Departamento</label>
+          <select id="filter-department">
+            <option value="">Todos</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Funcionário</th>
+              <th>Matrícula</th>
+              <th>Departamento</th>
+              <th>Tipo</th>
+              <th>Horário Registrado</th>
+              <th>Status Jornada</th>
+              <th>Foto / Validação</th>
+            </tr>
+          </thead>
+          <tbody id="rh-records-tbody">
+            <tr>
+              <td colspan="7" class="text-center">Carregando dados...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal Comprovante / QR Code Fallback -->
+  <dialog id="modal-comprovante" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i data-lucide="ticket"></i> Comprovante de Registro</h3>
+        <button id="btn-close-modal" class="btn-icon"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body" id="ticket-print-area">
+        <div class="ticket-container">
+          <h4>SUPERPONTO3000</h4>
+          <p class="ticket-subtitle">COMPROVANTE DE MARCAÇÃO</p>
+          <hr>
+          <p><strong>Matrícula:</strong> <span id="t-matricula">-</span></p>
+          <p><strong>Nome:</strong> <span id="t-nome">-</span></p>
+          <p><strong>Tipo:</strong> <span id="t-tipo">-</span></p>
+          <p><strong>Data/Hora:</strong> <span id="t-timestamp">-</span></p>
+          <p class="hash-text"><strong>Hash SHA-256:</strong><br><span id="t-hash">-</span></p>
+          <hr>
+          <div class="qrcode-wrapper">
+            <canvas id="qr-canvas"></canvas>
+            <p class="qr-note">QR Code para Validação de Contingência</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-print-ticket" class="btn-primary">
+          <i data-lucide="printer"></i> Imprimir Comprovante
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal Audit Foto -->
+  <dialog id="modal-photo" class="modal">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3>Foto do Registro</h3>
+        <button id="btn-close-photo-modal" class="btn-icon"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="audit-photo-img" src="" alt="Foto de Ponto" style="max-width: 100%; border-radius: 8px;">
+      </div>
+    </div>
+  </dialog>
+
+  <!-- JS Modules -->
+  <script type="module" src="src/js/app.js"></script>
+</body>
+</html>
